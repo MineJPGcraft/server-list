@@ -10,6 +10,18 @@ const apiClient = axios.create({
   }
 })
 
+// 请求拦截器添加 token
+apiClient.interceptors.request.use(
+  config => {
+    const token = localStorage.getItem('auth_token')
+    if (token) {
+      config.headers['authorization'] = token
+    }
+    return config
+  },
+  error => Promise.reject(error)
+)
+
 // 响应拦截器处理错误
 apiClient.interceptors.response.use(
   response => response.data,
@@ -26,3 +38,10 @@ export const getServers = () => apiClient.get('/getjson')
 export const saveServer = (server) => apiClient.post('/edit', [server])
 
 export const deleteServer = (id) => apiClient.post('/delete', { id })
+
+export const checkToken = (token) =>
+  axios.get(`${BASE_URL}/checkToken`, {
+    headers: {
+      'authorization': token
+    }
+  })

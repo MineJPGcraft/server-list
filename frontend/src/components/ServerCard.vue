@@ -6,12 +6,13 @@
     @contextmenu="handleContextMenu"
   >
     <div class="card-content">
-      <n-image
-        :src="server.icon"
-        :alt="server.name"
-        class="server-icon"
-        :img-props="{ style: 'object-fit: cover' }"
-      />
+      <div class="server-icon-wrapper">
+        <img
+          :src="server.icon"
+          :alt="server.name"
+          class="server-icon"
+        />
+      </div>
       <h3 class="server-name">{{ server.name }}</h3>
       <p class="server-description">{{ server.description }}</p>
     </div>
@@ -19,7 +20,7 @@
 </template>
 
 <script setup>
-import { NCard, NImage } from 'naive-ui'
+import { NCard } from 'naive-ui'
 import { useRouter } from 'vue-router'
 
 const props = defineProps({
@@ -61,11 +62,19 @@ const handleContextMenu = (event) => {
   gap: 12px;
 }
 
-.server-icon {
+.server-icon-wrapper {
   width: 80px;
   height: 80px;
+  flex-shrink: 0;
   border-radius: 8px;
+  overflow: hidden;
+}
+
+.server-icon {
+  width: 100%;
+  height: 100%;
   object-fit: cover;
+  display: block;
 }
 
 .server-name {

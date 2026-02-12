@@ -23,6 +23,12 @@
       @submit="handleSubmit"
       @cancel="handleCancel"
     />
+
+    <TokenDialog
+      v-model:show="showTokenDialog"
+      @submit="handleTokenSubmit"
+      @cancel="handleTokenCancel"
+    />
   </div>
 </template>
 
@@ -31,14 +37,19 @@ import { computed, onMounted, ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useMessage, NAlert } from 'naive-ui'
 import { useServerStore } from '@/stores/serverStore'
+import { useAuthStore } from '@/stores/authStore'
 import ServerForm from '@/components/ServerForm.vue'
+import TokenDialog from '@/components/TokenDialog.vue'
 
 const router = useRouter()
 const route = useRoute()
 const message = useMessage()
 const serverStore = useServerStore()
+const authStore = useAuthStore()
 
 const currentServer = ref(null)
+const showTokenDialog = ref(false)
+let pendingFormData = null
 
 const isCreateMode = computed(() => {
   return route.path === '/create' || !route.params.id
@@ -81,7 +92,34 @@ onMounted(async () => {
   }
 })
 
-const handleSubmit = async (formData) => {
+const requireAuth = (action) => {
+  if (!authStore.token) {
+    showTokenDialog.value = true
+    return false
+  }
+  return true
+}
+
+const handleTokenSubmit = async (token) => {
+  const isValid = await authStore.verifyToken(token)
+  if (isValid) {
+    message.success('验证成功')
+    showTokenDialog.value = false
+    if (pendingFormData) {
+      await performSubmit(pendingFormData)
+      pendingFormData = null
+    }
+  } else {
+    message.error('Token 无效')
+  }
+}
+
+const handleTokenCancel = () => {
+  pendingFormData = null
+  showTokenDialog.value = false
+}
+
+const performSubmit = async (formData) => {
   try {
     if (isCreateMode.value) {
       await serverStore.createServer(formData)
@@ -92,8 +130,21 @@ const handleSubmit = async (formData) => {
     }
     router.push('/')
   } catch (error) {
-    message.error((isCreateMode.value ? '添加' : '更新') + '失败：' + error.message)
+    if (error.message.includes('401') || error.message.includes('403')) {
+      authStore.clearToken()
+      message.error('身份验证失败，请重新登录')
+    } else {
+      message.error((isCreateMode.value ? '添加' : '更新') + '失败：' + error.message)
+    }
   }
+}
+
+const handleSubmit = async (formData) => {
+  if (!requireAuth()) {
+    pendingFormData = formData
+    return
+  }
+  await performSubmit(formData)
 }
 
 const handleCancel = () => {

@@ -19,10 +19,11 @@ defineProps({
   y: Number
 })
 
-const emit = defineEmits(['delete'])
+const emit = defineEmits(['delete', 'close'])
 
 const handleDelete = () => {
   emit('delete')
+  emit('close')
 }
 </script>
 
