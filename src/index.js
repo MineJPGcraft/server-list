@@ -1,7 +1,8 @@
-import express from "express";
+import express, {json} from "express";
 import fs from "fs";
 const app = express();
 const port = process.env.PORT || 8080;
+const token = process.env.TOKEN || 'token';
 app.use(express.json());
 app.get("/api/getjson", (req, res) => {
     try
@@ -20,8 +21,15 @@ app.get("/api/getjson", (req, res) => {
     }
 });
 app.post("/api/edit", (req, res) => {
-    console.log("content-type:", req.headers["content-type"]);
-    console.log("body:", req.body);
+    const queryToken=req.headers["authorization"];
+    if(!queryToken)
+    {
+        return res.status(401).send("No token provided");
+    }
+    if(queryToken!==token)
+    {
+        return res.status(403).send("Token invalid");
+    }
     if (!Array.isArray(req.body)) {
         return res.status(400).send("Body must be JSON array, and Content-Type must be application/json");
     }
@@ -56,6 +64,15 @@ app.post("/api/edit", (req, res) => {
     }
 });
 app.post("/api/delete", (req, res) => {
+    const queryToken=req.headers["authorization"];
+    if(!queryToken)
+    {
+        return res.status(401).send("No token provided");
+    }
+    if(queryToken!==token)
+    {
+        return res.status(403).send("Token invalid");
+    }
     try
     {
         let data=fs.readFileSync("data/server-list.json").toString();
@@ -83,6 +100,18 @@ app.post("/api/delete", (req, res) => {
         console.log(err);
         res.status(500).send(err.message);
     }
+});
+app.get("/api/checkToken", (req, res) => {
+    const queryToken=req.headers["authorization"];
+    if(!queryToken)
+    {
+        return res.status(401).send("No token provided");
+    }
+    if(queryToken!==token)
+    {
+        return res.status(403).send("Token invalid");
+    }
+    return res.status(200).send("Success.");
 });
 app.use((req, res) => {
     res.status(404).send('Not found');
