@@ -1,7 +1,7 @@
 import express from "express";
 import fs from "fs";
 const app = express();
-const port = process.env.port || 3000;
+const port = process.env.PORT || 8080;
 app.use(express.json());
 app.get("/api/getjson", (req, res) => {
     fs.readFile("data/server-list.json", (err, data) => {
@@ -82,7 +82,7 @@ app.post("/api/delete", (req, res) => {
 app.use((req, res) => {
     res.status(404).send('Not found');
 });
-let server=app.listen(port, () => {
+let server=app.listen(port, 'localhost', () => {
     console.log("Server started on port " + port);
 });
 server.on("error", console.error);

@@ -10,6 +10,8 @@
     "express": "^5.2.1"
   },
   "scripts": {
-    "backend": "node src/index.js"
+    "backend": "node src/index.js",
+    "build": "cd frontend&&yarn build",
+    "frontend": "cd frontend&&yarn run dev"
   }
 }
