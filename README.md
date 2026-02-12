@@ -83,6 +83,27 @@ yarn dev
 
 ## 功能说明
 
+### 0. 认证设置
+
+首次使用或执行管理操作前，需要设置认证令牌：
+
+1. 打开浏览器的开发者工具（F12）
+2. 进入 Console（控制台）标签
+3. 输入以下命令设置令牌：
+   ```javascript
+   localStorage.setItem('auth_token', 'your_token_here')
+   ```
+4. 将 `your_token_here` 替换为你在后端设置的 TOKEN 环境变量值（默认为 `token`）
+5. 刷新页面
+
+**示例：**
+```javascript
+// 如果后端 TOKEN 环境变量为 "my_secure_token_123"
+localStorage.setItem('auth_token', 'my_secure_token_123')
+```
+
+特别的，如果你没有设置令牌，在第一次执行管理操作时前端会自动要求输入并自动设置令牌
+
 ### 1. 查看服务器列表
 - 打开应用后默认显示所有服务器
 - 每个服务器卡片显示：图标、名称、描述
@@ -116,7 +137,7 @@ yarn dev
 ## API 接口
 
 ### GET /api/getjson
-获取所有服务器列表
+获取所有服务器列表（无需认证）
 
 **响应示例：**
 ```json
@@ -135,7 +156,12 @@ yarn dev
 ```
 
 ### POST /api/edit
-创建或更新服务器
+创建或更新服务器（需要认证）
+
+**请求头：**
+```
+Authorization: your_token
+```
 
 **请求体：**
 ```json
@@ -151,7 +177,12 @@ yarn dev
 **注意：** 必须传递数组格式，Content-Type 必须为 application/json
 
 ### POST /api/delete
-删除服务器
+删除服务器（需要认证）
+
+**请求头：**
+```
+Authorization: your_token
+```
 
 **请求体：**
 ```json
@@ -159,6 +190,19 @@ yarn dev
   "id": "example"
 }
 ```
+
+### GET /api/checkToken
+验证管理令牌（需要认证）
+
+**请求头：**
+```
+Authorization: your_token
+```
+
+**响应：**
+- 200：令牌有效
+- 401：未提供令牌
+- 403：令牌无效
 
 ## 表单验证规则
 
@@ -193,6 +237,95 @@ yarn build
 
 构建产物将生成在 `frontend/dist` 目录。
 
+## Docker 部署
+
+### 方式一：使用 GitHub Container Registry 镜像
+
+从 GHCR 拉取并运行预构建镜像：
+
+```bash
+docker pull ghcr.io/minejpgcraft/server-list:latest
+
+docker run -d \
+  -p 8080:8080 \
+  -e TOKEN=your_admin_token \
+  -v $(pwd)/data:/app/data \
+  --name mcjpg-server-list \
+  ghcr.io/minejpgcraft/server-list:latest
+```
+
+### 方式二：本地构建 Docker 镜像
+
+```bash
+# 构建镜像
+docker build -t mcjpg-server-list .
+
+# 运行容器
+docker run -d \
+  -p 8080:8080 \
+  -e TOKEN=your_admin_token \
+  -v $(pwd)/data:/app/data \
+  --name mcjpg-server-list \
+  mcjpg-server-list
+```
+
+### Docker 环境变量
+
+- **PORT**：服务器监听端口（默认：8080）
+- **TOKEN**：管理操作的认证令牌（默认：token）
+
+示例：
+
+```bash
+docker run -d \
+  -p 3000:3000 \
+  -e PORT=3000 \
+  -e TOKEN=my_secure_token_123 \
+  -v $(pwd)/data:/app/data \
+  --name mcjpg-server-list \
+  mcjpg-server-list
+```
+
+### 数据持久化
+
+务必使用 `-v` 参数挂载 `data` 目录，以确保服务器列表数据持久化：
+
+```bash
+-v $(pwd)/data:/app/data
+```
+
+### 访问应用
+
+容器启动后，访问 **http://localhost:8080**（或你指定的端口）
+
+### Docker Compose
+
+创建 `docker-compose.yml`：
+
+```yaml
+version: '3.8'
+
+services:
+  server-list:
+    image: ghcr.io/minejpgcraft/server-list:latest
+    # 或使用本地构建：
+    # build: .
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - TOKEN=your_admin_token
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
+```
+
+启动：
+
+```bash
+docker-compose up -d
+```
+
 ## 注意事项
 
 1. 后端运行在 **8080** 端口（可通过环境变量 `PORT` 修改）
@@ -200,6 +333,10 @@ yarn build
 3. 前端通过 Vite 代理访问后端 API（`/api/*` 代理到 `http://localhost:8080`）
 4. 确保后端服务器先启动，再启动前端开发服务器
 5. ID 字段在编辑模式下显示但禁用，确保不会被意外修改
+6. **管理操作（添加/编辑/删除）需要认证**：
+   - 通过环境变量 `TOKEN` 设置管理令牌（默认值：`token`）
+   - 前端需要在请求头中提供 `Authorization` 字段
+7. **Docker 部署时务必挂载 `data` 目录**，否则容器重启后数据会丢失
 
 ## 故障排除
 
