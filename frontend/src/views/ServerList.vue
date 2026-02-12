@@ -16,10 +16,37 @@
       </div>
     </div>
 
+    <!-- 搜索和分页设置 -->
+    <div class="toolbar">
+      <n-input
+        v-model:value="searchQuery"
+        placeholder="按名称搜索服务器..."
+        clearable
+        class="search-input"
+      >
+        <template #prefix>
+          <n-icon>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+              <path fill="currentColor" d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5A6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5S14 7.01 14 9.5S11.99 14 9.5 14z"/>
+            </svg>
+          </n-icon>
+        </template>
+      </n-input>
+      <div class="page-size-selector">
+        <span class="page-size-label">每页显示：</span>
+        <n-select
+          v-model:value="pageSize"
+          :options="pageSizeOptions"
+          size="small"
+          style="width: 100px"
+        />
+      </div>
+    </div>
+
     <n-spin :show="serverStore.loading">
-      <div v-if="serverStore.servers.length > 0" class="server-grid">
+      <div v-if="paginatedServers.length > 0" class="server-grid">
         <ServerCard
-          v-for="server in serverStore.servers"
+          v-for="server in paginatedServers"
           :key="server.id"
           :server="server"
           @contextmenu="handleContextMenu"
@@ -27,17 +54,32 @@
       </div>
       <n-empty
         v-else
-        description="暂无服务器"
+        :description="searchQuery ? '未找到匹配的服务器' : '暂无服务器'"
         class="empty-state"
       />
+
+      <!-- 分页 -->
+      <div v-if="filteredServers.length > 0" class="pagination-container">
+        <n-pagination
+          v-model:page="currentPage"
+          :item-count="filteredServers.length"
+          :page-size="pageSize"
+          show-size-picker
+          :page-sizes="[6, 12, 24, 48]"
+          @update:page-size="handlePageSizeChange"
+        >
+          <template #prefix="{ itemCount }">
+            共 {{ itemCount }} 个服务器
+          </template>
+        </n-pagination>
+      </div>
     </n-spin>
 
     <ContextMenu
-      :visible="contextMenu.visible"
-      :x="contextMenu.x"
-      :y="contextMenu.y"
+      :visible="contextMenu.visible.value"
+      :x="contextMenu.x.value"
+      :y="contextMenu.y.value"
       @delete="handleDelete"
-      @close="contextMenu.hide"
     />
 
     <TokenDialog
@@ -49,9 +91,9 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { NButton, NSpin, NEmpty, useMessage, useDialog } from 'naive-ui'
+import { NButton, NSpin, NEmpty, NInput, NSelect, NPagination, NIcon, useMessage, useDialog } from 'naive-ui'
 import { useServerStore } from '@/stores/serverStore'
 import { useAuthStore } from '@/stores/authStore'
 import { useContextMenu } from '@/composables/useContextMenu'
@@ -68,6 +110,67 @@ const contextMenu = useContextMenu()
 
 const showTokenDialog = ref(false)
 let pendingAction = null
+
+// 搜索和分页状态
+const searchQuery = ref('')
+const currentPage = ref(1)
+const pageSize = ref(parseInt(localStorage.getItem('serverListPageSize')) || 12)
+
+const pageSizeOptions = [
+  { label: '6', value: 6 },
+  { label: '12', value: 12 },
+  { label: '24', value: 24 },
+  { label: '48', value: 48 }
+]
+
+// 过滤后的服务器列表
+const filteredServers = computed(() => {
+  if (!searchQuery.value) {
+    return serverStore.servers
+  }
+
+  const query = searchQuery.value.toLowerCase().trim()
+  return serverStore.servers.filter(server =>
+    server.name.toLowerCase().includes(query)
+  )
+})
+
+// 总页数
+const totalPages = computed(() => {
+  return Math.ceil(filteredServers.value.length / pageSize.value)
+})
+
+// 当前页的服务器列表
+const paginatedServers = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  const end = start + pageSize.value
+  return filteredServers.value.slice(start, end)
+})
+
+// 监听搜索变化，重置到第一页
+watch(searchQuery, () => {
+  currentPage.value = 1
+})
+
+// 监听过滤结果变化，如果当前页超出范围则重置
+watch(filteredServers, () => {
+  if (currentPage.value > totalPages.value && totalPages.value > 0) {
+    currentPage.value = totalPages.value
+  }
+})
+
+// 监听分页大小变化，保存到 localStorage
+watch(pageSize, (newSize) => {
+  localStorage.setItem('serverListPageSize', newSize.toString())
+  // 重新计算当前页，避免超出范围
+  if (currentPage.value > totalPages.value && totalPages.value > 0) {
+    currentPage.value = totalPages.value
+  }
+})
+
+const handlePageSizeChange = (newSize) => {
+  pageSize.value = newSize
+}
 
 onMounted(async () => {
   try {
@@ -132,19 +235,22 @@ const handleDelete = () => {
   const server = contextMenu.targetData.value
   if (!server) return
 
-  // 先隐藏右键菜单
+  // 立即隐藏右键菜单
   contextMenu.hide()
 
   // 检查身份验证
   if (!requireAuth(() => {
-    // 重新显示菜单并触发删除
-    contextMenu.show({ clientX: contextMenu.x.value, clientY: contextMenu.y.value, preventDefault: () => {} }, server)
-    handleDelete()
+    // 验证成功后重新触发删除
+    handleDeleteConfirm(server)
   })) {
     return
   }
 
-  // 弹出确认对话框
+  // 直接弹出确认对话框
+  handleDeleteConfirm(server)
+}
+
+const handleDeleteConfirm = (server) => {
   dialog.warning({
     title: '确认删除',
     content: `确定要删除服务器 "${server.name}" 吗？`,
@@ -194,6 +300,32 @@ const handleDelete = () => {
   align-items: center;
 }
 
+.toolbar {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.search-input {
+  flex: 1;
+  min-width: 200px;
+  max-width: 400px;
+}
+
+.page-size-selector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.page-size-label {
+  font-size: 14px;
+  color: #666;
+}
+
 .server-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -202,6 +334,14 @@ const handleDelete = () => {
 
 .empty-state {
   padding: 60px 0;
+}
+
+.pagination-container {
+  display: flex;
+  justify-content: center;
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid #f0f0f0;
 }
 
 @media (max-width: 768px) {
@@ -213,6 +353,19 @@ const handleDelete = () => {
     flex-direction: column;
     align-items: flex-start;
     gap: 16px;
+  }
+
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .search-input {
+    max-width: 100%;
+  }
+
+  .page-size-selector {
+    justify-content: space-between;
   }
 }
 </style>
