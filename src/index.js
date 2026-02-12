@@ -4,15 +4,20 @@ const app = express();
 const port = process.env.PORT || 8080;
 app.use(express.json());
 app.get("/api/getjson", (req, res) => {
-    fs.readFile("data/server-list.json", (err, data) => {
-        if(err)
+    try
+    {
+        let json = JSON.parse(fs.readFileSync("data/server-list.json").toString());
+        for(let i = 0; i < json.length; i++)
         {
-            console.log(err);
-            res.status(500).send(err.message);
-            return;
+            json[i].uid=i;
         }
-        res.send(data);
-    });
+        res.send(JSON.stringify(json, null, 2));
+    }
+    catch(err)
+    {
+        console.log(err);
+        res.status(500).send(err.message);
+    }
 });
 app.post("/api/edit", (req, res) => {
     console.log("content-type:", req.headers["content-type"]);
@@ -82,7 +87,7 @@ app.post("/api/delete", (req, res) => {
 app.use((req, res) => {
     res.status(404).send('Not found');
 });
-let server=app.listen(port, 'localhost', () => {
+let server=app.listen(port, () => {
     console.log("Server started on port " + port);
 });
 server.on("error", console.error);
