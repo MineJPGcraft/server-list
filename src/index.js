@@ -1,5 +1,11 @@
 import express, {json} from "express";
 import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const app = express();
 const port = process.env.PORT || 8080;
 const token = process.env.TOKEN || 'token';
@@ -113,9 +119,22 @@ app.get("/api/checkToken", (req, res) => {
     }
     return res.status(200).send("Success.");
 });
-app.use((req, res) => {
-    res.status(404).send('Not found');
-});
+
+// 静态文件服务 - 提供前端构建文件
+const distPath = path.join(__dirname, '../dist');
+if (fs.existsSync(distPath)) {
+    app.use(express.static(distPath));
+    // SPA fallback - 所有非API路由返回 index.html
+    app.use((req, res) => {
+        res.sendFile(path.join(distPath, 'index.html'));
+    });
+} else {
+    // 如果没有 dist 目录，返回 404
+    app.use((req, res) => {
+        res.status(404).send('Not found');
+    });
+}
+
 let server=app.listen(port, () => {
     console.log("Server started on port " + port);
 });
