@@ -1,0 +1,15 @@
+{
+  "name": "server-list",
+  "version": "1.0.0",
+  "description": "MCJPG在线编辑服务器列表",
+  "author": "zzfx1166",
+  "license": "MIT",
+  "main": "src/index.js",
+  "type": "module",
+  "dependencies": {
+    "express": "^5.2.1"
+  },
+  "scripts": {
+    "backend": "node src/index.js"
+  }
+}

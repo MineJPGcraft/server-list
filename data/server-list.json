@@ -1,0 +1,12 @@
+[
+  {
+    "id": "example",
+    "name": "示例",
+    "type": "此处填写类型",
+    "version": "此处填写版本",
+    "icon": "https://mcjpg.org/logo.png",
+    "description": "此处填写描述",
+    "link": "https://mcjpg.org",
+    "ip": "mcjpg.org"
+  }
+]
