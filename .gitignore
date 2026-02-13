@@ -4,3 +4,5 @@ frontend/node_modules
 .claude
 Claude.md
 plan.md
+yarn.lock
+data
