@@ -17,7 +17,7 @@ RUN npm install --omit=dev && \
     rm -rf /root/.npm /tmp/*
 
 # 复制源码和构建产物
-COPY data/ ./data/
+COPY default-data/ ./data/
 COPY src/ ./src/
 COPY --from=frontend-builder /app/dist ./dist
 
