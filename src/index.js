@@ -112,7 +112,7 @@ app.post("/api/create", async(req, res) => {
         res.status(500).send(err.message);
     }
 });
-app.post("/api/delete", (req, res) => {
+app.post("/api/delete", async(req, res) => {
     const queryToken=req.headers["authorization"];
     if(!queryToken)
     {
@@ -124,24 +124,15 @@ app.post("/api/delete", (req, res) => {
     }
     try
     {
-        let data=fs.readFileSync("data/server-list.json").toString();
-        let json=JSON.parse(data);
-        let success=0;
-        for(let i=0;i<json.length;i++)
+        if(!req.body.uuid)
         {
-            if(json[i].id===req.body.id)
-            {
-                json.splice(i,1);
-                success=1;
-                break;
-            }
+            return res.status(400).send('Missing uuid');
         }
-        if(success!==1)
+        const result=await db.query("DELETE FROM server WHERE uuid=$1;",[req.body.uuid]);
+        if(result.rowCount<=0)
         {
-            res.status(400).send("Failed.");
-            return;
+            return res.status(404).send("Server not found");
         }
-        fs.writeFileSync("data/server-list.json", JSON.stringify(json, null, 2));
         res.send("Success.");
     }
     catch(err)
