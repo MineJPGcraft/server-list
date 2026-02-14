@@ -1,4 +1,4 @@
-import express, {json} from "express";
+import express, {json, raw} from "express";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -14,7 +14,7 @@ const db=new pg.Client({
 });
 await db.connect();
 await db.query(`CREATE TABLE IF NOT EXISTS server (
-    uuid UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    uuid UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name text NOT NULL,
     type text NOT NULL,
     version text NOT NULL,
@@ -33,12 +33,11 @@ app.get("/api/getjson",async (req, res) => {
     try
     {
         let json=((await db.query("SELECT * FROM server;")).rows);
-        // let json = JSON.parse(fs.readFileSync("data/server-list.json").toString());
         for(let i = 0; i < json.length; i++)
         {
-            json[i].uid=i;
+            json[i].id=i;
         }
-        res.send(JSON.stringify(json, null, 2));
+        res.json(json);
     }
     catch(err)
     {
@@ -46,7 +45,7 @@ app.get("/api/getjson",async (req, res) => {
         res.status(500).send(err.message);
     }
 });
-app.post("/api/edit", (req, res) => {
+app.post("/api/edit", async(req, res) => {
     const queryToken=req.headers["authorization"];
     if(!queryToken)
     {
@@ -56,31 +55,26 @@ app.post("/api/edit", (req, res) => {
     {
         return res.status(403).send("Token invalid");
     }
-    if (!Array.isArray(req.body)) {
-        return res.status(400).send("Body must be JSON array, and Content-Type must be application/json");
-    }
     try
     {
-        let data=fs.readFileSync("data/server-list.json").toString();
-        let json=JSON.parse(data);
-        for(let i=0;i<req.body.length;i++)
+        const reqs=['name','type','version','icon','description','link','uuid'];
+        if(reqs.filter(i=>!req.body[i]).length>0)
         {
-            let tmp=0;
-            for(let j=0;j<json.length;j++)
-            {
-                if(json[j].id===req.body[i].id)
-                {
-                    json[j]=req.body[i];
-                    tmp=1;
-                    break;
-                }
-            }
-            if(tmp!==1)
-            {
-                json[json.length]=req.body[i];
-            }
+            return res.status(400).send('Missing required fields');
         }
-        fs.writeFileSync("data/server-list.json", JSON.stringify(json, null, 2));
+        const result=await db.query(`UPDATE server SET
+            name=$1,
+            type=$2,
+            version=$3,
+            icon=$4,
+            description=$5,
+            link=$6,
+            IP=$7
+        WHERE uuid=$8;`,[req.body.name,req.body.type,req.body.version,req.body.icon,req.body.description,req.body.link,req.body.IP||null,req.body.uuid]);
+        if(result.rowCount<=0)
+        {
+            return res.status(404).send("Server not found");
+        }
         res.send("Success.");
     }
     catch(err)
