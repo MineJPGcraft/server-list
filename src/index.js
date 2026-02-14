@@ -2,20 +2,38 @@ import express, {json} from "express";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-
+import pg from "pg";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
+const db=new pg.Client({
+    user: process.env.DB_USER||'postgres',
+    password: process.env.DB_PASSWORD||'password',
+    host: process.env.DB_HOST||'localhost',
+    port: process.env.DB_PORT||'5432',
+    database: process.env.DB_NAME||'serverlist'
+});
+await db.connect();
+await db.query(`CREATE TABLE IF NOT EXISTS server (
+    uuid UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    name text NOT NULL,
+    type text NOT NULL,
+    version text NOT NULL,
+    icon text NOT NULL,
+    description text NOT NULL,
+    link text NOT NULL,
+    IP text
+)`);
 const app = express();
 const port = process.env.PORT || 8080;
 const token = process.env.TOKEN || 'token';
 if(!fs.existsSync("data")) {fs.mkdirSync("data");}
 if(!fs.existsSync("data/server-list.json")) fs.copyFileSync("default-data/server-list.json", "data/server-list.json");
 app.use(express.json());
-app.get("/api/getjson", (req, res) => {
+app.get("/api/getjson",async (req, res) => {
     try
     {
-        let json = JSON.parse(fs.readFileSync("data/server-list.json").toString());
+        let json=((await db.query("SELECT * FROM server;")).rows);
+        // let json = JSON.parse(fs.readFileSync("data/server-list.json").toString());
         for(let i = 0; i < json.length; i++)
         {
             json[i].uid=i;

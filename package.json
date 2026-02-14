@@ -7,7 +7,8 @@
   "main": "src/index.js",
   "type": "module",
   "dependencies": {
-    "express": "^5.2.1"
+    "express": "^5.2.1",
+    "pg": "^8.18.0"
   },
   "scripts": {
     "backend": "node src/index.js",
