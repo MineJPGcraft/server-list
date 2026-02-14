@@ -9,7 +9,7 @@ const routes = [
     component: ServerList
   },
   {
-    path: '/edit/:id',
+    path: '/edit/:uuid',
     name: 'ServerEdit',
     component: ServerEdit,
     props: true

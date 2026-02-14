@@ -47,7 +47,7 @@
       <div v-if="paginatedServers.length > 0" class="server-grid">
         <ServerCard
           v-for="server in paginatedServers"
-          :key="server.id"
+          :key="server.uuid"
           :server="server"
           @contextmenu="handleContextMenu"
         />
@@ -258,7 +258,7 @@ const handleDeleteConfirm = (server) => {
     negativeText: '取消',
     onPositiveClick: async () => {
       try {
-        await serverStore.deleteServer(server.id)
+        await serverStore.deleteServer(server.uuid)
         message.success('删除成功')
       } catch (error) {
         if (error.message.includes('401') || error.message.includes('403')) {

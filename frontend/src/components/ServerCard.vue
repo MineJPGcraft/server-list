@@ -34,7 +34,7 @@ const emit = defineEmits(['contextmenu'])
 const router = useRouter()
 
 const handleClick = () => {
-  router.push(`/edit/${props.server.id}`)
+  router.push(`/edit/${props.server.uuid}`)
 }
 
 const handleContextMenu = (event) => {

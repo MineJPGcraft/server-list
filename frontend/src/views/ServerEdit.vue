@@ -6,15 +6,12 @@
 
     <n-alert
       v-if="isCreateMode"
-      type="warning"
-      title="重要提示"
+      type="info"
+      title="提示"
       :bordered="false"
       style="margin-bottom: 20px"
     >
-      <ul style="margin: 0; padding-left: 20px;">
-        <li>服务器添加后ID不可改变</li>
-        <li>如果你选择的ID和已有服务器重复则此操作相当于修改已有服务器</li>
-      </ul>
+      服务器将自动生成唯一的UUID作为标识符
     </n-alert>
 
     <n-spin :show="loading">
@@ -57,7 +54,7 @@ let pendingFormData = null
 let isInitialAuth = false
 
 const isCreateMode = computed(() => {
-  return route.path === '/create' || !route.params.id
+  return route.path === '/create' || !route.params.uuid
 })
 
 onMounted(async () => {
@@ -77,7 +74,7 @@ const loadPageData = async () => {
   try {
     if (!isCreateMode.value) {
       // 编辑模式，获取服务器数据
-      const serverId = route.params.id
+      const serverUuid = route.params.uuid
 
       // 如果 store 中没有数据，先加载
       if (serverStore.servers.length === 0) {
@@ -90,7 +87,7 @@ const loadPageData = async () => {
         }
       }
 
-      currentServer.value = serverStore.getServerById(serverId)
+      currentServer.value = serverStore.getServerByUuid(serverUuid)
 
       if (!currentServer.value) {
         message.error('服务器不存在')
@@ -99,7 +96,6 @@ const loadPageData = async () => {
     } else {
       // 创建模式，初始化空数据
       currentServer.value = {
-        id: '',
         name: '',
         type: '',
         version: '',

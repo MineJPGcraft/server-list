@@ -35,9 +35,11 @@ apiClient.interceptors.response.use(
 // API 方法
 export const getServers = () => apiClient.get('/getjson')
 
-export const saveServer = (server) => apiClient.post('/edit', [server])
+export const createServer = (server) => apiClient.post('/create', server)
 
-export const deleteServer = (id) => apiClient.post('/delete', { id })
+export const editServer = (server) => apiClient.post('/edit', server)
+
+export const deleteServer = (uuid) => apiClient.post('/delete', { uuid })
 
 export const checkToken = (token) =>
   axios.get(`${BASE_URL}/checkToken`, {

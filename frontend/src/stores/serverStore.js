@@ -11,6 +11,9 @@ export const useServerStore = defineStore('server', {
   getters: {
     getServerById: (state) => (id) => {
       return state.servers.find(s => s.id === id)
+    },
+    getServerByUuid: (state) => (uuid) => {
+      return state.servers.find(s => s.uuid === uuid)
     }
   },
 
@@ -32,9 +35,9 @@ export const useServerStore = defineStore('server', {
       this.loading = true
       this.error = null
       try {
-        await serverAPI.saveServer(server)
-        // 添加到本地状态
-        this.servers.push(server)
+        const uuid = await serverAPI.createServer(server)
+        // 重新获取服务器列表以获取完整数据
+        await this.fetchServers()
       } catch (error) {
         this.error = error.message
         throw error
@@ -47,12 +50,9 @@ export const useServerStore = defineStore('server', {
       this.loading = true
       this.error = null
       try {
-        await serverAPI.saveServer(server)
-        // 更新本地状态
-        const index = this.servers.findIndex(s => s.id === server.id)
-        if (index !== -1) {
-          this.servers[index] = server
-        }
+        await serverAPI.editServer(server)
+        // 重新获取服务器列表以获取最新数据
+        await this.fetchServers()
       } catch (error) {
         this.error = error.message
         throw error
@@ -61,13 +61,13 @@ export const useServerStore = defineStore('server', {
       }
     },
 
-    async deleteServer(id) {
+    async deleteServer(uuid) {
       this.loading = true
       this.error = null
       try {
-        await serverAPI.deleteServer(id)
+        await serverAPI.deleteServer(uuid)
         // 从本地状态移除
-        this.servers = this.servers.filter(s => s.id !== id)
+        this.servers = this.servers.filter(s => s.uuid !== uuid)
       } catch (error) {
         this.error = error.message
         throw error

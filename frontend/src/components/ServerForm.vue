@@ -6,11 +6,11 @@
     label-placement="top"
     class="server-form"
   >
-    <n-form-item label="ID" path="id">
+    <n-form-item v-if="mode === 'edit'" label="UUID" path="uuid">
       <n-input
-        v-model:value="formData.id"
-        placeholder="请输入服务器ID"
-        :disabled="mode === 'edit'"
+        v-model:value="formData.uuid"
+        placeholder="UUID"
+        disabled
       />
     </n-form-item>
 
@@ -91,7 +91,7 @@ const emit = defineEmits(['submit', 'cancel'])
 
 const formRef = ref(null)
 const formData = reactive({
-  id: '',
+  uuid: '',
   name: '',
   type: '',
   version: '',
@@ -111,18 +111,7 @@ const urlValidator = (rule, value) => {
   return true
 }
 
-// ID 验证规则
-const idValidator = (rule, value) => {
-  if (!value) return new Error('此字段必填')
-  const idPattern = /^[a-zA-Z0-9_-]+$/
-  if (!idPattern.test(value)) {
-    return new Error('ID 只能包含字母、数字、下划线和连字符')
-  }
-  return true
-}
-
 const rules = {
-  id: [{ validator: idValidator, trigger: 'blur' }],
   name: [{ required: true, message: '此字段必填', trigger: 'blur' }],
   type: [{ required: true, message: '此字段必填', trigger: 'blur' }],
   version: [{ required: true, message: '此字段必填', trigger: 'blur' }],
@@ -147,11 +136,16 @@ const handleSubmit = () => {
   formRef.value.validate((errors) => {
     if (!errors) {
       const submitData = { ...formData }
-      // 删除 uid 字段（如果存在）
+      // 删除 uid 和 id 字段（如果存在）
       delete submitData.uid
+      delete submitData.id
       // 如果 ip 为空，删除该字段
       if (!submitData.ip || submitData.ip.trim() === '') {
         delete submitData.ip
+      }
+      // 创建模式下删除 uuid 字段
+      if (props.mode === 'create') {
+        delete submitData.uuid
       }
       emit('submit', submitData)
     }

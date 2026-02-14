@@ -27,7 +27,6 @@ const app = express();
 const port = process.env.PORT || 8080;
 const token = process.env.TOKEN || 'token';
 if(!fs.existsSync("data")) {fs.mkdirSync("data");}
-if(!fs.existsSync("data/server-list.json")) fs.copyFileSync("default-data/server-list.json", "data/server-list.json");
 app.use(express.json());
 app.get("/api/getjson",async (req, res) => {
     try
