@@ -83,6 +83,35 @@ app.post("/api/edit", async(req, res) => {
         res.status(500).send(err.message);
     }
 });
+app.post("/api/create", async(req, res) => {
+    const queryToken=req.headers["authorization"];
+    if(!queryToken)
+    {
+        return res.status(401).send("No token provided");
+    }
+    if(queryToken!==token)
+    {
+        return res.status(403).send("Token invalid");
+    }
+    try
+    {
+        const reqs=['name','type','version','icon','description','link'];
+        if(reqs.filter(i=>!req.body[i]).length>0)
+        {
+            return res.status(400).send('Missing required fields');
+        }
+        const result=await db.query(`INSERT INTO server
+    (name,type,version,icon,description,link,IP)
+    VALUES ($1,$2,$3,$4,$5,$6,$7)
+    RETURNING uuid;`,[req.body.name,req.body.type,req.body.version,req.body.icon,req.body.description,req.body.link,req.body.IP||null]);
+        res.send(result.rows[0].uuid);
+    }
+    catch(err)
+    {
+        console.log(err);
+        res.status(500).send(err.message);
+    }
+});
 app.post("/api/delete", (req, res) => {
     const queryToken=req.headers["authorization"];
     if(!queryToken)
