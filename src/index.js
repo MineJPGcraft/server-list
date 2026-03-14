@@ -1,33 +1,24 @@
-import express, {json, raw} from "express";
+import express from "express";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import pg from "pg";
+import {db,dbinit} from "./db.js";
+import cookieParser from "cookie-parser";
+import {authRouter,checkSession} from "./auth.js";
+import {admin_router} from "./admin.js";
+import {oidcConfigRouter} from "./oidc-config.js";
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const db=new pg.Client({
-    user: process.env.DB_USER||'postgres',
-    password: process.env.DB_PASSWORD||'password',
-    host: process.env.DB_HOST||'localhost',
-    port: process.env.DB_PORT||'5432',
-    database: process.env.DB_NAME||'serverlist'
-});
-await db.connect();
-await db.query(`CREATE TABLE IF NOT EXISTS server (
-    uuid UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name text NOT NULL,
-    type text NOT NULL,
-    version text NOT NULL,
-    icon text NOT NULL,
-    description text NOT NULL,
-    link text NOT NULL,
-    IP text
-)`);
 const app = express();
 const port = process.env.PORT || 8080;
-const token = process.env.TOKEN || 'token';
+await dbinit();
 if(!fs.existsSync("data")) {fs.mkdirSync("data");}
 app.use(express.json());
+app.use(cookieParser());
+app.use('/api/oidcConfig/admin',checkSession(2));
+app.use('/api/oidcConfig',oidcConfigRouter);
+app.use('/api/auth',authRouter);
 app.get("/api/getjson",async (req, res) => {
     try
     {
@@ -44,115 +35,8 @@ app.get("/api/getjson",async (req, res) => {
         res.status(500).send(err.message);
     }
 });
-app.post("/api/edit", async(req, res) => {
-    const queryToken=req.headers["authorization"];
-    if(!queryToken)
-    {
-        return res.status(401).send("No token provided");
-    }
-    if(queryToken!==token)
-    {
-        return res.status(403).send("Token invalid");
-    }
-    try
-    {
-        const reqs=['name','type','version','icon','description','link','uuid'];
-        if(reqs.filter(i=>!req.body[i]).length>0)
-        {
-            return res.status(400).send('Missing required fields');
-        }
-        const result=await db.query(`UPDATE server SET
-            name=$1,
-            type=$2,
-            version=$3,
-            icon=$4,
-            description=$5,
-            link=$6,
-            IP=$7
-        WHERE uuid=$8;`,[req.body.name,req.body.type,req.body.version,req.body.icon,req.body.description,req.body.link,req.body.IP||null,req.body.uuid]);
-        if(result.rowCount<=0)
-        {
-            return res.status(404).send("Server not found");
-        }
-        res.send("Success.");
-    }
-    catch(err)
-    {
-        console.log(err);
-        res.status(500).send(err.message);
-    }
-});
-app.post("/api/create", async(req, res) => {
-    const queryToken=req.headers["authorization"];
-    if(!queryToken)
-    {
-        return res.status(401).send("No token provided");
-    }
-    if(queryToken!==token)
-    {
-        return res.status(403).send("Token invalid");
-    }
-    try
-    {
-        const reqs=['name','type','version','icon','description','link'];
-        if(reqs.filter(i=>!req.body[i]).length>0)
-        {
-            return res.status(400).send('Missing required fields');
-        }
-        const result=await db.query(`INSERT INTO server
-    (name,type,version,icon,description,link,IP)
-    VALUES ($1,$2,$3,$4,$5,$6,$7)
-    RETURNING uuid;`,[req.body.name,req.body.type,req.body.version,req.body.icon,req.body.description,req.body.link,req.body.IP||null]);
-        res.send(result.rows[0].uuid);
-    }
-    catch(err)
-    {
-        console.log(err);
-        res.status(500).send(err.message);
-    }
-});
-app.post("/api/delete", async(req, res) => {
-    const queryToken=req.headers["authorization"];
-    if(!queryToken)
-    {
-        return res.status(401).send("No token provided");
-    }
-    if(queryToken!==token)
-    {
-        return res.status(403).send("Token invalid");
-    }
-    try
-    {
-        if(!req.body.uuid)
-        {
-            return res.status(400).send('Missing uuid');
-        }
-        const result=await db.query("DELETE FROM server WHERE uuid=$1;",[req.body.uuid]);
-        if(result.rowCount<=0)
-        {
-            return res.status(404).send("Server not found");
-        }
-        res.send("Success.");
-    }
-    catch(err)
-    {
-        console.log(err);
-        res.status(500).send(err.message);
-    }
-});
-app.get("/api/checkToken", (req, res) => {
-    const queryToken=req.headers["authorization"];
-    if(!queryToken)
-    {
-        return res.status(401).send("No token provided");
-    }
-    if(queryToken!==token)
-    {
-        return res.status(403).send("Token invalid");
-    }
-    return res.status(200).send("Success.");
-});
-
+app.use('/api/admin',checkSession(2));
+app.use('/api/admin',admin_router);
 // 静态文件服务 - 提供前端构建文件
 const distPath = path.join(__dirname, '../dist');
 if (fs.existsSync(distPath)) {
