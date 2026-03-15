@@ -2,7 +2,6 @@ import axios from 'axios'
 
 const BASE_URL = '/api'
 
-// 创建 axios 实例
 const apiClient = axios.create({
   baseURL: BASE_URL,
   headers: {
@@ -10,40 +9,38 @@ const apiClient = axios.create({
   }
 })
 
-// 请求拦截器添加 token
-apiClient.interceptors.request.use(
-  config => {
-    const token = localStorage.getItem('auth_token')
-    if (token) {
-      config.headers['authorization'] = token
-    }
-    return config
-  },
-  error => Promise.reject(error)
-)
-
-// 响应拦截器处理错误
 apiClient.interceptors.response.use(
   response => response.data,
   error => {
     console.error('API Error:', error)
-    const message = error.response?.data?.message || error.message || '请求失败'
-    return Promise.reject(new Error(message))
+    return Promise.reject(error)
   }
 )
 
-// API 方法
 export const getServers = () => apiClient.get('/getjson')
 
-export const createServer = (server) => apiClient.post('/create', server)
+export const createServer = (server) => apiClient.post('/admin/create', server)
 
-export const editServer = (server) => apiClient.post('/edit', server)
+export const editServer = (server) => apiClient.post('/admin/edit', server)
 
-export const deleteServer = (uuid) => apiClient.post('/delete', { uuid })
+export const deleteServer = (uuid) => apiClient.post('/admin/delete', { uuid })
 
-export const checkToken = (token) =>
-  axios.get(`${BASE_URL}/checkToken`, {
-    headers: {
-      'authorization': token
-    }
-  })
+export const checkAuth = () => apiClient.get('/auth/check')
+
+export const logout = () => apiClient.post('/auth/logout')
+
+export const loginWithToken = (token) => apiClient.post('/auth/token', { token })
+
+export const getOidcProviders = () => apiClient.get('/oidcConfig/list')
+
+export const getOidcAdminList = () => apiClient.get('/oidcConfig/admin/list')
+
+export const createOidcProvider = (data) => apiClient.post('/oidcConfig/admin/create', data)
+
+export const editOidcProvider = (data) => apiClient.post('/oidcConfig/admin/edit', data)
+
+export const deleteOidcProvider = (clientId) => apiClient.post('/oidcConfig/admin/delete', { clientId })
+
+export const getUserList = () => apiClient.get('/admin/user/list')
+
+export const editUser = (data) => apiClient.post('/admin/user/edit', data)

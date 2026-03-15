@@ -18,7 +18,7 @@ authRouter.get("/callback", async (req, res) => {
             client.query("COMMIT;")
             return res.status(400).send('Missing required fields');
         }
-        const oidc_info=await axios.post({
+        const oidc_info=await axios({
             method: 'POST',
             url: oidc_client[0].apipoint,
             headers: {'content-type': 'application/x-www-form-urlencoded'},
@@ -30,19 +30,18 @@ authRouter.get("/callback", async (req, res) => {
                 redirect_uri: oidc_client[0].redirect_uri
             })
         });
-        const json_info=JSON.parse(await jwt.verify(JSON.parse(oidc_info.data).id_token,oidc_client[0].secret,{algorithms: ['HS256', 'RS256', 'PS256']}));
+        const json_info=jwt.decode(oidc_info.data.id_token);
         const user_info=(await client.query("SELECT * FROM users WHERE id=$1;",[json_info.sub])).rows;
         if(user_info.length<=0)
         {
-            user_info[0].perm=1;
-            await client.query(`INSERT INTO session
-                (id,name)
-                VALUES ($1,$2);`,[json_info.sub,json_info.name]);
+            await client.query(`INSERT INTO users
+                (id,name,perm)
+                VALUES ($1,$2,$3);`,[json_info.sub,json_info.name||json_info.sub,1]);
         }
         const session_id=(await client.query(`INSERT INTO session
                 (userid,perm)
                 VALUES ($1,$2)
-                RETURNING *;`,[json_info.sub,oidc_client[0].perm||user_info[0].perm])).rows;
+                RETURNING *;`,[json_info.sub,Math.max(oidc_client[0].perm||1,user_info[0]?.perm||1)])).rows;
         res.cookie('session_id',session_id[0].uuid,{httpOnly:true});
         client.query("COMMIT;");
         return res.redirect(oidc_client[0].frontend||'/');
@@ -50,6 +49,8 @@ authRouter.get("/callback", async (req, res) => {
     catch(err)
     {
         client.query("ROLLBACK;");
+        console.error('OIDC callback error:', err.message);
+        res.status(500).send(err.message);
     }
     finally
     {
@@ -126,11 +127,12 @@ export function checkSession(level)
             }
             if(session_info[0].perm>=level)
             {
+                req.sessionPerm=session_info[0].perm;
                 next();
             }
             else
             {
-                return res.status(403).send("Not authorized");
+                return res.status(403).send("Permission denied");
             }
         }
         catch(err)
@@ -139,3 +141,6 @@ export function checkSession(level)
         }
     }
 }
+authRouter.get("/check", checkSession(1), (req, res) => {
+    res.json({ perm: req.sessionPerm });
+});

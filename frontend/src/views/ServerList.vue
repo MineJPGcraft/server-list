@@ -10,6 +10,27 @@
         >
           退出登录
         </n-button>
+        <n-button
+          v-else
+          quaternary
+          @click="showTokenDialog = true"
+        >
+          登录
+        </n-button>
+        <n-button
+          v-if="authStore.isAdmin"
+          quaternary
+          @click="router.push('/users')"
+        >
+          用户管理
+        </n-button>
+        <n-button
+          v-if="authStore.isAdmin"
+          quaternary
+          @click="router.push('/oidc')"
+        >
+          OIDC 管理
+        </n-button>
         <n-button type="primary" @click="handleAdd">
           添加服务器
         </n-button>
@@ -173,6 +194,7 @@ const handlePageSizeChange = (newSize) => {
 }
 
 onMounted(async () => {
+  await authStore.checkAuth()
   try {
     await serverStore.fetchServers()
   } catch (error) {
@@ -181,7 +203,7 @@ onMounted(async () => {
 })
 
 const requireAuth = (action) => {
-  if (!authStore.token) {
+  if (!authStore.isAuthenticated) {
     pendingAction = action
     showTokenDialog.value = true
     return false
@@ -190,16 +212,21 @@ const requireAuth = (action) => {
 }
 
 const handleTokenSubmit = async (token) => {
-  const isValid = await authStore.verifyToken(token)
-  if (isValid) {
+  try {
+    await authStore.loginWithToken(token)
     message.success('验证成功')
     showTokenDialog.value = false
     if (pendingAction) {
       pendingAction()
       pendingAction = null
     }
-  } else {
-    message.error('Token 无效')
+  } catch (e) {
+    const msg = e.response?.data
+    if (msg === 'Token disabled') {
+      message.error('Token 登录未启用')
+    } else {
+      message.error('Token 无效')
+    }
   }
 }
 
@@ -214,8 +241,8 @@ const handleLogout = () => {
     content: '确定要退出登录吗？',
     positiveText: '确认',
     negativeText: '取消',
-    onPositiveClick: () => {
-      authStore.clearToken()
+    onPositiveClick: async () => {
+      await authStore.logout()
       message.success('已退出登录')
     }
   })
@@ -261,11 +288,16 @@ const handleDeleteConfirm = (server) => {
         await serverStore.deleteServer(server.uuid)
         message.success('删除成功')
       } catch (error) {
-        if (error.message.includes('401') || error.message.includes('403')) {
-          authStore.clearToken()
-          message.error('身份验证失败，请重新登录')
+        if (error.response?.status === 403) {
+          if (error.response.data === 'Permission denied') {
+            message.error('权限不足')
+          } else {
+            authStore.isAuthenticated = false
+            authStore.perm = 0
+            message.error('登录已失效，请重新登录')
+          }
         } else {
-          message.error('删除失败：' + error.message)
+          message.error('删除失败：' + (error.response?.data || error.message))
         }
       }
     }

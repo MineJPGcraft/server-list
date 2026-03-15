@@ -1,6 +1,36 @@
 import express from "express";
 import {db} from "./db.js";
 export const admin_router = express.Router();
+admin_router.post("/user/edit", async(req, res) => {
+    try
+    {
+        if(!req.body.id || req.body.perm === undefined)
+        {
+            return res.status(400).send('Missing required fields');
+        }
+        const result=await db.query("UPDATE users SET perm=$1 WHERE id=$2;",[req.body.perm,req.body.id]);
+        if(result.rowCount<=0)
+        {
+            return res.status(404).send("User not found");
+        }
+        res.send("Success.");
+    }
+    catch(err)
+    {
+        res.status(500).send(err.message);
+    }
+});
+admin_router.get("/user/list", async(req, res) => {
+    try
+    {
+        const result=await db.query("SELECT id,name,perm FROM users;");
+        res.json(result.rows);
+    }
+    catch(err)
+    {
+        res.status(500).send(err.message);
+    }
+});
 admin_router.post("/edit", async(req, res) => {
     try
     {

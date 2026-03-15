@@ -1,41 +1,46 @@
 import { defineStore } from 'pinia'
-import { checkToken } from '@/api/server'
+import { checkAuth, logout, loginWithToken } from '@/api/server'
 
 export const useAuthStore = defineStore('auth', {
-  state: () => {
-    const token = localStorage.getItem('auth_token')
-    return {
-      token: token || null,
-      isAuthenticated: !!token
-    }
+  state: () => ({
+    isAuthenticated: false,
+    perm: 0
+  }),
+
+  getters: {
+    isAdmin: (state) => state.perm >= 2
   },
 
   actions: {
-    setToken(token) {
-      this.token = token
-      this.isAuthenticated = true
-      localStorage.setItem('auth_token', token)
-    },
-
-    clearToken() {
-      this.token = null
-      this.isAuthenticated = false
-      localStorage.removeItem('auth_token')
-    },
-
-    async verifyToken(token) {
+    async checkAuth() {
       try {
-        await checkToken(token)
-        this.setToken(token)
+        const data = await checkAuth()
+        this.isAuthenticated = true
+        this.perm = data.perm
         return true
-      } catch (error) {
-        this.clearToken()
+      } catch {
+        this.isAuthenticated = false
+        this.perm = 0
         return false
       }
     },
 
-    getToken() {
-      return this.token
+    async logout() {
+      try {
+        await logout()
+      } catch {}
+      this.isAuthenticated = false
+      this.perm = 0
+    },
+
+    async loginWithToken(token) {
+      try {
+        await loginWithToken(token)
+        await this.checkAuth()
+        return true
+      } catch (e) {
+        throw e
+      }
     }
   }
 })

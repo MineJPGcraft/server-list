@@ -59,7 +59,8 @@ const isCreateMode = computed(() => {
 
 onMounted(async () => {
   // 先检查身份验证
-  if (!authStore.token) {
+  await authStore.checkAuth()
+  if (!authStore.isAuthenticated) {
     isInitialAuth = true
     showTokenDialog.value = true
     return
@@ -111,7 +112,7 @@ const loadPageData = async () => {
 }
 
 const requireAuth = (action) => {
-  if (!authStore.token) {
+  if (!authStore.isAuthenticated) {
     showTokenDialog.value = true
     return false
   }
@@ -119,24 +120,27 @@ const requireAuth = (action) => {
 }
 
 const handleTokenSubmit = async (token) => {
-  const isValid = await authStore.verifyToken(token)
-  if (isValid) {
+  try {
+    await authStore.loginWithToken(token)
     message.success('验证成功')
     showTokenDialog.value = false
 
-    // 如果是初始验证，加载页面数据
     if (isInitialAuth) {
       isInitialAuth = false
       await loadPageData()
     }
 
-    // 如果有待提交的表单数据，执行提交
     if (pendingFormData) {
       await performSubmit(pendingFormData)
       pendingFormData = null
     }
-  } else {
-    message.error('Token 无效')
+  } catch (e) {
+    const msg = e.response?.data
+    if (msg === 'Token disabled') {
+      message.error('Token 登录未启用')
+    } else {
+      message.error('Token 无效')
+    }
   }
 }
 
@@ -165,11 +169,16 @@ const performSubmit = async (formData) => {
     }
     router.push('/')
   } catch (error) {
-    if (error.message.includes('401') || error.message.includes('403')) {
-      authStore.clearToken()
-      message.error('身份验证失败，请重新登录')
+    if (error.response?.status === 403) {
+      if (error.response.data === 'Permission denied') {
+        message.error('权限不足')
+      } else {
+        authStore.isAuthenticated = false
+        authStore.perm = 0
+        message.error('登录已失效，请重新登录')
+      }
     } else {
-      message.error((isCreateMode.value ? '添加' : '更新') + '失败：' + error.message)
+      message.error((isCreateMode.value ? '添加' : '更新') + '失败：' + (error.response?.data || error.message))
     }
   }
 }

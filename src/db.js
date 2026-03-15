@@ -26,11 +26,13 @@ export async function dbinit()
 );`);
     await db.query(`CREATE TABLE IF NOT EXISTS oidc (
     id text NOT NULL PRIMARY KEY,
+    name text NOT NULL,
     secret text NOT NULL,
     perm integer,
     frontend text,
     redirect_uri text NOT NULL,
-    apipoint text NOT NULL
+    apipoint text NOT NULL,
+    auth_url text NOT NULL
 );`);
     await db.query(`CREATE TABLE IF NOT EXISTS users (
     id text NOT NULL PRIMARY KEY,
