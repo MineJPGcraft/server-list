@@ -8,7 +8,9 @@ export const useAuthStore = defineStore('auth', {
   }),
 
   getters: {
-    isAdmin: (state) => state.perm >= 2
+    isActive: (state) => state.isAuthenticated && state.perm >= 1,
+    isAdmin: (state) => state.perm >= 2,
+    isSuperAdmin: (state) => state.perm >= 3
   },
 
   actions: {

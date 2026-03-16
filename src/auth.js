@@ -18,6 +18,11 @@ authRouter.get("/callback", async (req, res) => {
             client.query("COMMIT;")
             return res.status(400).send('Missing required fields');
         }
+        if(oidc_client[0].perm===0)
+        {
+            client.query("COMMIT;");
+            return res.status(403).send("OIDC provider disabled");
+        }
         const oidc_info=await axios({
             method: 'POST',
             url: oidc_client[0].apipoint,
@@ -37,6 +42,17 @@ authRouter.get("/callback", async (req, res) => {
             await client.query(`INSERT INTO users
                 (id,name,perm)
                 VALUES ($1,$2,$3);`,[json_info.sub,json_info.name||json_info.sub,1]);
+        }
+        else if(user_info[0].banned)
+        {
+            // 封禁用户仍允许登录，但 perm=0
+            const session_id=(await client.query(`INSERT INTO session
+                (userid,perm)
+                VALUES ($1,$2)
+                RETURNING *;`,[json_info.sub,0])).rows;
+            res.cookie('session_id',session_id[0].uuid,{httpOnly:true});
+            client.query("COMMIT;");
+            return res.redirect(oidc_client[0].frontend||'/');
         }
         const session_id=(await client.query(`INSERT INTO session
                 (userid,perm)
@@ -90,12 +106,12 @@ authRouter.post("/token", async (req, res) => {
         {
             await db.query(`INSERT INTO users
                 (id,name,perm)
-                VALUES ($1,$2,$3);`,["token","token",2]);
+                VALUES ($1,$2,$3);`,["token","token",3]);
         }
         const session_id=(await db.query(`INSERT INTO session
                 (userid,perm)
                 VALUES ($1,$2)
-                RETURNING *;`,["token",2])).rows;
+                RETURNING *;`,["token",3])).rows;
         res.cookie('session_id',session_id[0].uuid,{httpOnly:true});
         return res.send("Success");
     }
@@ -109,10 +125,6 @@ export function checkSession(level)
 {
     return async function(req, res, next)
     {
-        if(!level)
-        {
-            next();
-        }
         try
         {
             const session=req.cookies.session_id;
@@ -125,9 +137,10 @@ export function checkSession(level)
             {
                 return res.status(403).send("Not authorized");
             }
-            if(session_info[0].perm>=level)
+            req.sessionPerm=session_info[0].perm;
+            req.sessionUserId=session_info[0].userid;
+            if(!level || session_info[0].perm>=level)
             {
-                req.sessionPerm=session_info[0].perm;
                 next();
             }
             else
@@ -141,6 +154,6 @@ export function checkSession(level)
         }
     }
 }
-authRouter.get("/check", checkSession(1), (req, res) => {
+authRouter.get("/check", checkSession(0), (req, res) => {
     res.json({ perm: req.sessionPerm });
 });

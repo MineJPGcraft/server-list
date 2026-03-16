@@ -7,6 +7,8 @@ import cookieParser from "cookie-parser";
 import {authRouter,checkSession} from "./auth.js";
 import {admin_router} from "./admin.js";
 import {oidcConfigRouter} from "./oidc-config.js";
+import {userRequestRouter} from "./request.js";
+import {setupRouter} from "./setup.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -16,7 +18,7 @@ await dbinit();
 if(!fs.existsSync("data")) {fs.mkdirSync("data");}
 app.use(express.json());
 app.use(cookieParser());
-app.use('/api/oidcConfig/admin',checkSession(2));
+app.use('/api/oidcConfig/admin',checkSession(3));
 app.use('/api/oidcConfig',oidcConfigRouter);
 app.use('/api/auth',authRouter);
 app.get("/api/getjson",async (req, res) => {
@@ -37,6 +39,9 @@ app.get("/api/getjson",async (req, res) => {
 });
 app.use('/api/admin',checkSession(2));
 app.use('/api/admin',admin_router);
+app.use('/api/setup', setupRouter);
+app.use('/api/request',checkSession(1));
+app.use('/api/request',userRequestRouter);
 // 静态文件服务 - 提供前端构建文件
 const distPath = path.join(__dirname, '../dist');
 if (fs.existsSync(distPath)) {

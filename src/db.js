@@ -39,6 +39,19 @@ export async function dbinit()
     name text NOT NULL,
     perm integer NOT NULL DEFAULT 1,
     nowpd integer NOT NULL DEFAULT 0,
-    alpd integer NOT NULL DEFAULT 0
+    alpd integer NOT NULL DEFAULT 0,
+    banned boolean NOT NULL DEFAULT false
+);`);
+    await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS banned boolean NOT NULL DEFAULT false;`);
+    await db.query(`CREATE TABLE IF NOT EXISTS server_requests (
+    id UUID NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+    userid text NOT NULL,
+    req_type text NOT NULL,
+    target_uuid UUID,
+    data jsonb NOT NULL,
+    status text NOT NULL DEFAULT 'draft',
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    reject_reason text
 );`);
 }

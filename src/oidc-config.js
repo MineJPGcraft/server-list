@@ -5,7 +5,7 @@ oidcConfigRouter.get("/list",async(req,res)=>
 {
     try
     {
-        let oidcInfo=(await db.query("SELECT id,redirect_uri,auth_url,name FROM oidc;")).rows;
+        let oidcInfo=(await db.query("SELECT id,redirect_uri,auth_url,name FROM oidc WHERE perm IS NULL OR perm != 0;")).rows;
         res.json(oidcInfo);
     }
     catch(err)

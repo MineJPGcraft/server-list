@@ -5,6 +5,10 @@
     :style="{ left: x + 'px', top: y + 'px' }"
     @click.stop
   >
+    <div v-if="showRequestEdit" class="menu-item" @click="handleRequestEdit">
+      <span class="menu-icon">✏️</span>
+      <span>申请编辑</span>
+    </div>
     <div class="menu-item" @click="handleDelete">
       <span class="menu-icon">🗑️</span>
       <span>删除</span>
@@ -16,13 +20,21 @@
 defineProps({
   visible: Boolean,
   x: Number,
-  y: Number
+  y: Number,
+  showRequestEdit: {
+    type: Boolean,
+    default: false
+  }
 })
 
-const emit = defineEmits(['delete'])
+const emit = defineEmits(['delete', 'request-edit'])
 
 const handleDelete = () => {
   emit('delete')
+}
+
+const handleRequestEdit = () => {
+  emit('request-edit')
 }
 </script>
 

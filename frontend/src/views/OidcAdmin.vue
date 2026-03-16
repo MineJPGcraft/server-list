@@ -30,7 +30,7 @@
             <n-descriptions-item label="令牌端点">{{ p.apipoint }}</n-descriptions-item>
             <n-descriptions-item label="回调地址">{{ p.redirect_uri }}</n-descriptions-item>
             <n-descriptions-item label="登录后跳转">{{ p.frontend || '/' }}</n-descriptions-item>
-            <n-descriptions-item label="权限覆写">{{ p.perm ?? '不覆写（继承用户权限）' }}</n-descriptions-item>
+            <n-descriptions-item label="权限覆写">{{ p.perm === 0 ? '0（已禁用）' : (p.perm ?? '不覆写（继承用户权限）') }}</n-descriptions-item>
           </n-descriptions>
         </n-card>
       </div>
@@ -87,8 +87,8 @@
         <n-form-item label="权限覆写（可选）" path="perm">
           <n-input-number
             v-model:value="formData.perm"
-            :min="1"
-            placeholder="留空则继承用户权限"
+            :min="0"
+            placeholder="留空则继承用户权限，0 = 禁用此提供商"
             clearable
             style="width: 100%"
           />

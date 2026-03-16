@@ -13,16 +13,31 @@
             <th>用户 ID</th>
             <th>用户名</th>
             <th>权限</th>
+            <th>状态</th>
             <th>操作</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="u in users" :key="u.id">
+          <tr v-for="u in users" :key="u.id" :class="{ 'banned-row': u.banned }">
             <td class="id-cell">{{ u.id }}</td>
             <td>{{ u.name }}</td>
-            <td>{{ u.perm }}</td>
+            <td>{{ permLabel(u.perm) }}</td>
             <td>
-              <n-button size="small" @click="openEditDialog(u)">修改权限</n-button>
+              <n-tag :type="u.banned ? 'error' : 'success'" size="small">
+                {{ u.banned ? '已封禁' : '正常' }}
+              </n-tag>
+            </td>
+            <td>
+              <n-space>
+                <n-button size="small" @click="openEditDialog(u)">修改权限</n-button>
+                <n-button
+                  size="small"
+                  :type="u.banned ? 'default' : 'error'"
+                  @click="handleBanToggle(u)"
+                >
+                  {{ u.banned ? '解封' : '封禁' }}
+                </n-button>
+              </n-space>
             </td>
           </tr>
         </tbody>
@@ -41,9 +56,9 @@
           <n-input :value="editTarget.name" disabled />
         </n-form-item>
         <n-form-item label="权限等级">
-          <n-input-number
+          <n-select
             v-model:value="editTarget.perm"
-            :min="1"
+            :options="permOptions"
             style="width: 100%"
           />
         </n-form-item>
@@ -62,19 +77,32 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import {
-  NButton, NTable, NModal, NForm, NFormItem, NInput, NInputNumber,
-  NSpace, NSpin, NEmpty, useMessage
+  NButton, NTable, NModal, NForm, NFormItem, NInput, NSelect,
+  NSpace, NSpin, NEmpty, NTag, useMessage, useDialog
 } from 'naive-ui'
-import { getUserList, editUser } from '@/api/server'
+import { getUserList, editUser, banUser } from '@/api/server'
 
 const router = useRouter()
 const message = useMessage()
+const dialog = useDialog()
 
 const users = ref([])
 const loading = ref(false)
 const showDialog = ref(false)
 const submitting = ref(false)
 const editTarget = reactive({ id: '', name: '', perm: 1 })
+
+const permOptions = [
+  { label: '1 — 普通用户', value: 1 },
+  { label: '2 — 管理员', value: 2 },
+  { label: '3 — 超级管理员', value: 3 }
+]
+
+const permLabel = (p) => {
+  if (p >= 3) return '3 — 超级管理员'
+  if (p >= 2) return '2 — 管理员'
+  return '1 — 普通用户'
+}
 
 const fetchUsers = async () => {
   loading.value = true
@@ -107,6 +135,28 @@ const handleSubmit = async () => {
     submitting.value = false
   }
 }
+
+const handleBanToggle = (u) => {
+  const action = u.banned ? '解封' : '封禁'
+  const content = u.banned
+    ? `确定要解封用户 "${u.name}" 吗？`
+    : `确定要封禁用户 "${u.name}" 吗？封禁后该用户的所有会话将立即失效。`
+  dialog.warning({
+    title: `确认${action}`,
+    content,
+    positiveText: '确认',
+    negativeText: '取消',
+    onPositiveClick: async () => {
+      try {
+        await banUser({ id: u.id, banned: !u.banned })
+        message.success(`${action}成功`)
+        await fetchUsers()
+      } catch (e) {
+        message.error(`${action}失败：` + (e.response?.data || e.message))
+      }
+    }
+  })
+}
 </script>
 
 <style scoped>
@@ -137,5 +187,9 @@ const handleSubmit = async () => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.banned-row td {
+  opacity: 0.6;
 }
 </style>

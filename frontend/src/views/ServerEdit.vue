@@ -21,6 +21,7 @@
         :mode="isCreateMode ? 'create' : 'edit'"
         @submit="handleSubmit"
         @cancel="handleCancel"
+        @draft="handleDraft"
       />
     </n-spin>
 
@@ -40,6 +41,7 @@ import { useServerStore } from '@/stores/serverStore'
 import { useAuthStore } from '@/stores/authStore'
 import ServerForm from '@/components/ServerForm.vue'
 import TokenDialog from '@/components/TokenDialog.vue'
+import { createRequest } from '@/api/server'
 
 const router = useRouter()
 const route = useRoute()
@@ -193,6 +195,29 @@ const handleSubmit = async (formData) => {
 
 const handleCancel = () => {
   router.push('/')
+}
+
+const handleDraft = async (formData) => {
+  try {
+    const data = {
+      name: formData.name,
+      type: formData.type,
+      version: formData.version,
+      icon: formData.icon,
+      link: formData.link,
+      description: formData.description,
+      ...(formData.ip ? { IP: formData.ip } : {})
+    }
+    await createRequest({
+      req_type: 'edit',
+      target_uuid: route.params.uuid,
+      data
+    })
+    message.success('草稿已创建')
+    router.push('/requests')
+  } catch (e) {
+    message.error('创建草稿失败：' + (e.response?.data || e.message))
+  }
 }
 </script>
 

@@ -67,6 +67,7 @@
 
     <div class="form-actions">
       <n-button @click="handleCancel">取消</n-button>
+      <n-button v-if="mode === 'edit'" @click="handleDraft">创建草稿</n-button>
       <n-button type="primary" @click="handleSubmit">提交</n-button>
     </div>
   </n-form>
@@ -87,7 +88,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['submit', 'cancel'])
+const emit = defineEmits(['submit', 'cancel', 'draft'])
 
 const formRef = ref(null)
 const formData = reactive({
@@ -154,6 +155,20 @@ const handleSubmit = () => {
 
 const handleCancel = () => {
   emit('cancel')
+}
+
+const handleDraft = () => {
+  formRef.value.validate((errors) => {
+    if (!errors) {
+      const submitData = { ...formData }
+      delete submitData.uid
+      delete submitData.id
+      if (!submitData.ip || submitData.ip.trim() === '') {
+        delete submitData.ip
+      }
+      emit('draft', submitData)
+    }
+  })
 }
 </script>
 

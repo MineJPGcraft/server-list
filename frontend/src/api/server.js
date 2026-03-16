@@ -44,3 +44,25 @@ export const deleteOidcProvider = (clientId) => apiClient.post('/oidcConfig/admi
 export const getUserList = () => apiClient.get('/admin/user/list')
 
 export const editUser = (data) => apiClient.post('/admin/user/edit', data)
+
+export const banUser = (data) => apiClient.post('/admin/user/ban', data)
+
+// 初始化向导
+export const getSetupStatus = () => apiClient.get('/setup/status')
+export const setupOidc = (data) => apiClient.post('/setup/oidc', data)
+export const setupPromote = () => apiClient.post('/setup/promote')
+export const setupPromoteById = (userid) => apiClient.post('/setup/promote-by-id', { userid })
+
+// 用户申请
+export const getMyRequests = () => apiClient.get('/request/list')
+export const createRequest = (data) => apiClient.post('/request/create', data)
+export const editRequest = (data) => apiClient.post('/request/edit', data)
+export const submitRequest = (id) => apiClient.post('/request/submit', { id })
+export const cancelRequest = (id) => apiClient.post('/request/cancel', { id })
+export const deleteRequest = (id) => apiClient.post('/request/delete', { id })
+// 管理员审核
+export const getAdminRequests = () => apiClient.get('/admin/request/list')
+export const adminEditRequest = (data) => apiClient.post('/admin/request/edit', data)
+export const approveRequest = (id, force_create = false) => apiClient.post('/admin/request/approve', { id, force_create })
+export const rejectRequest = (id, reason = '') => apiClient.post('/admin/request/reject', { id, reason })
+export const adminSubmitRequest = (id) => apiClient.post('/admin/request/submit', { id })

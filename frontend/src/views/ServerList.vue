@@ -4,6 +4,13 @@
       <h1>服务器列表</h1>
       <div class="header-actions">
         <n-button
+          v-if="setupMode"
+          type="warning"
+          @click="router.push('/setup')"
+        >
+          系统初始化
+        </n-button>
+        <n-button
           v-if="authStore.isAuthenticated"
           quaternary
           @click="handleLogout"
@@ -20,18 +27,32 @@
         <n-button
           v-if="authStore.isAdmin"
           quaternary
+          @click="router.push('/admin/requests')"
+        >
+          申请管理
+        </n-button>
+        <n-button
+          v-if="authStore.isActive"
+          quaternary
+          @click="router.push('/requests')"
+        >
+          我的申请
+        </n-button>
+        <n-button
+          v-if="authStore.isSuperAdmin"
+          quaternary
           @click="router.push('/users')"
         >
           用户管理
         </n-button>
         <n-button
-          v-if="authStore.isAdmin"
+          v-if="authStore.isSuperAdmin"
           quaternary
           @click="router.push('/oidc')"
         >
           OIDC 管理
         </n-button>
-        <n-button type="primary" @click="handleAdd">
+        <n-button v-if="authStore.isAdmin" type="primary" @click="handleAdd">
           添加服务器
         </n-button>
       </div>
@@ -100,7 +121,9 @@
       :visible="contextMenu.visible.value"
       :x="contextMenu.x.value"
       :y="contextMenu.y.value"
+      :show-request-edit="authStore.isActive && !authStore.isAdmin"
       @delete="handleDelete"
+      @request-edit="handleRequestEdit"
     />
 
     <TokenDialog
@@ -121,6 +144,7 @@ import { useContextMenu } from '@/composables/useContextMenu'
 import ServerCard from '@/components/ServerCard.vue'
 import ContextMenu from '@/components/ContextMenu.vue'
 import TokenDialog from '@/components/TokenDialog.vue'
+import { getSetupStatus, createRequest, submitRequest } from '@/api/server'
 
 const router = useRouter()
 const message = useMessage()
@@ -131,6 +155,7 @@ const contextMenu = useContextMenu()
 
 const showTokenDialog = ref(false)
 let pendingAction = null
+const setupMode = ref(false)
 
 // 搜索和分页状态
 const searchQuery = ref('')
@@ -195,6 +220,8 @@ const handlePageSizeChange = (newSize) => {
 
 onMounted(async () => {
   await authStore.checkAuth()
+  // 静默检测是否需要初始化，不影响正常加载
+  getSetupStatus().then(() => { setupMode.value = true }).catch(() => {})
   try {
     await serverStore.fetchServers()
   } catch (error) {
@@ -206,6 +233,10 @@ const requireAuth = (action) => {
   if (!authStore.isAuthenticated) {
     pendingAction = action
     showTokenDialog.value = true
+    return false
+  }
+  if (!authStore.isActive) {
+    message.error('账号已被封禁，无法执行操作')
     return false
   }
   return true
@@ -250,12 +281,23 @@ const handleLogout = () => {
 
 const handleAdd = () => {
   if (requireAuth(() => handleAdd())) {
-    router.push('/create')
+    if (authStore.isAdmin) {
+      router.push('/create')
+    } else {
+      router.push('/requests/new')
+    }
   }
 }
 
 const handleContextMenu = (event, server) => {
   contextMenu.show(event, server)
+}
+
+const handleRequestEdit = () => {
+  const server = contextMenu.targetData.value
+  if (!server) return
+  contextMenu.hide()
+  router.push(`/requests/new?type=edit&uuid=${server.uuid}`)
 }
 
 const handleDelete = () => {
