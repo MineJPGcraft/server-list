@@ -71,30 +71,57 @@ userRequestRouter.post("/edit", async (req, res) => {
 });
 
 userRequestRouter.post("/submit", async (req, res) => {
+    const client = await db.connect();
     try {
         const { id } = req.body;
         if (!id) return res.status(400).send('Missing id');
-        const existing = (await db.query(
-            "SELECT * FROM server_requests WHERE id=$1;", [id]
-        )).rows;
-        if (existing.length === 0) return res.status(404).send('Request not found');
-        if (existing[0].userid !== req.sessionUserId) return res.status(403).send('Permission denied');
-        if (existing[0].status !== 'draft') return res.status(400).send('Can only submit draft requests');
 
-        const pendingCount = (await db.query(
-            "SELECT COUNT(*) FROM server_requests WHERE userid=$1 AND status='pending';",
+        await client.query('BEGIN');
+
+        // 锁定当前请求
+        const existingRes = await client.query(
+            "SELECT * FROM server_requests WHERE id=$1 FOR UPDATE;",
+            [id]
+        );
+        if (existingRes.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).send('Request not found');
+        }
+        const existing = existingRes.rows[0];
+        if (existing.userid !== req.sessionUserId) {
+            await client.query('ROLLBACK');
+            return res.status(403).send('Permission denied');
+        }
+        if (existing.status !== 'draft') {
+            await client.query('ROLLBACK');
+            return res.status(400).send('Can only submit draft requests');
+        }
+
+        // 锁定该用户所有pending请求，防止并发增多
+        const pendingRowsRes = await client.query(
+            "SELECT id FROM server_requests WHERE userid=$1 AND status='pending' FOR UPDATE;",
             [req.sessionUserId]
-        )).rows[0].count;
-        if (parseInt(pendingCount) >= MAX_PENDING_PER_USER) {
+        );
+        const pendingCount = pendingRowsRes.rows.length;
+
+        if (pendingCount >= MAX_PENDING_PER_USER) {
+            await client.query('ROLLBACK');
             return res.status(429).send(`Too many pending requests (max ${MAX_PENDING_PER_USER})`);
         }
 
-        await db.query(
-            "UPDATE server_requests SET status='pending', updated_at=now() WHERE id=$1;", [id]
+        // 更新当前请求状态为pending
+        await client.query(
+            "UPDATE server_requests SET status='pending', updated_at=now() WHERE id=$1;",
+            [id]
         );
+
+        await client.query('COMMIT');
         res.send("Success");
     } catch (err) {
+        await client.query('ROLLBACK');
         res.status(500).send(err.message);
+    } finally {
+        client.release();
     }
 });
 
