@@ -66,3 +66,10 @@ export const adminEditRequest = (data) => apiClient.post('/admin/request/edit', 
 export const approveRequest = (id, force_create = false) => apiClient.post('/admin/request/approve', { id, force_create })
 export const rejectRequest = (id, reason = '') => apiClient.post('/admin/request/reject', { id, reason })
 export const adminSubmitRequest = (id) => apiClient.post('/admin/request/submit', { id })
+export async function discoverOidc(issuerUrl) {
+    // 标准 OIDC Discovery 端点
+    const wellKnownUrl = issuerUrl.replace(/\/+$/, '') + '/.well-known/openid-configuration'
+    const res = await fetch(wellKnownUrl)
+    if (!res.ok) throw new Error('无法获取 OIDC 配置，请检查 Issuer URL')
+    return await res.json()
+}

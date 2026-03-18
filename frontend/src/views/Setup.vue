@@ -2,7 +2,7 @@
   <div class="setup-container">
     <div class="setup-header">
       <h1>初始化向导</h1>
-      <p class="setup-subtitle">TOKEN 登录未启用，且当前没有超级管理员。请按步骤完成初始化。</p>
+      <p class="setup-subtitle">TOKEN 登录未启用,且当前没有超级管理员。请按步骤完成初始化。</p>
     </div>
 
     <n-spin :show="checking">
@@ -15,10 +15,25 @@
             <span>配置 OIDC 登录提供商</span>
             <n-tag v-if="providers.length > 0" type="success" size="small">已配置 {{ providers.length }} 个</n-tag>
           </div>
-          <p class="step-desc">添加至少一个 OIDC 提供商，以便通过第三方账号登录。</p>
+          <p class="step-desc">添加至少一个 OIDC 提供商,以便通过第三方账号登录。</p>
 
           <n-form ref="oidcFormRef" :model="oidcForm" :rules="oidcRules" label-placement="top">
             <n-grid :cols="2" :x-gap="16">
+
+              <!-- ★ OIDC 自动发现 ★ -->
+              <n-form-item-gi :span="2" label="Issuer URL（自动发现，可选）">
+                <n-input-group>
+                  <n-input
+                      v-model:value="issuerUrl"
+                      placeholder="e.g. https://accounts.google.com 或 http://localhost:8000"
+                      style="flex: 1"
+                  />
+                  <n-button type="info" :loading="discovering" @click="handleDiscover">
+                    自动发现
+                  </n-button>
+                </n-input-group>
+              </n-form-item-gi>
+
               <n-form-item-gi label="Client ID" path="id">
                 <n-input v-model:value="oidcForm.id" placeholder="e.g. bee7bafb37755081f807" />
               </n-form-item-gi>
@@ -27,10 +42,10 @@
               </n-form-item-gi>
               <n-form-item-gi :span="2" label="Client Secret" path="secret">
                 <n-input
-                  v-model:value="oidcForm.secret"
-                  type="password"
-                  show-password-on="click"
-                  placeholder="客户端密钥"
+                    v-model:value="oidcForm.secret"
+                    type="password"
+                    show-password-on="click"
+                    placeholder="客户端密钥"
                 />
               </n-form-item-gi>
               <n-form-item-gi :span="2" label="授权端点 (auth_url)" path="auth_url">
@@ -47,75 +62,80 @@
 
           <div v-if="providers.length > 0" class="configured-providers">
             <n-divider style="margin: 12px 0" />
-            <n-text depth="3" style="font-size: 13px">已配置的提供商：</n-text>
-            <n-space style="margin-top: 6px">
-              <n-tag v-for="p in providers" :key="p.id" type="success">{{ p.name }}</n-tag>
-            </n-space>
+            <n-text depth="3">已配置的提供商:</n-text>
+            <div class="provider-tags">
+              <n-tag
+                  v-for="p in providers"
+                  :key="p.id"
+                  closable
+                  type="success"
+                  @close="handleDeleteProvider(p)"
+              >
+                {{ p.name }} ({{ p.id }})
+              </n-tag>
+            </div>
           </div>
 
-          <div class="step-actions">
-            <n-button type="primary" :loading="oidcSaving" @click="handleSaveOidc">
-              {{ providers.length > 0 ? '再添加一个' : '保存提供商' }}
-            </n-button>
-          </div>
+          <n-button
+              type="primary"
+              :loading="oidcSaving"
+              :disabled="oidcSaving"
+              style="margin-top: 12px"
+              @click="handleSaveOidc"
+          >
+            保存 OIDC 提供商
+          </n-button>
         </n-card>
 
         <!-- Step 2: 登录 -->
-        <n-card class="step-card" :class="{ 'step-disabled': providers.length === 0 }">
+        <n-card class="step-card">
           <div class="step-title">
             <n-tag :type="isLoggedIn ? 'success' : 'default'" round>2</n-tag>
             <span>通过 OIDC 登录</span>
             <n-tag v-if="isLoggedIn" type="success" size="small">已登录</n-tag>
           </div>
-
-          <div v-if="isLoggedIn" class="logged-in-info">
-            <n-text>已登录，可继续下一步。</n-text>
-          </div>
-          <div v-else-if="providers.length === 0">
-            <n-text depth="3">请先完成第 1 步配置 OIDC 提供商。</n-text>
-          </div>
-          <div v-else>
-            <p class="step-desc">选择提供商登录。登录完成后会自动回到此页面。</p>
-            <n-space vertical>
-              <n-button
+          <p class="step-desc">使用刚才配置的 OIDC 提供商完成登录。登录后回到此页面继续。</p>
+          <n-space v-if="!isLoggedIn && providers.length > 0" vertical>
+            <n-button
                 v-for="p in providers"
                 :key="p.id"
-                block
+                type="primary"
                 @click="handleOidcLogin(p)"
-              >
-                使用 {{ p.name }} 登录
-              </n-button>
-            </n-space>
-          </div>
+            >
+              使用 {{ p.name }} 登录
+            </n-button>
+          </n-space>
+          <n-text v-if="isLoggedIn" type="success">✓ 当前已登录</n-text>
         </n-card>
 
-        <!-- Step 3: 设为超管 -->
-        <n-card class="step-card" :class="{ 'step-disabled': providers.length === 0 }">
+        <!-- Step 3: 提升管理员 -->
+        <n-card class="step-card">
           <div class="step-title">
             <n-tag :type="isDone ? 'success' : 'default'" round>3</n-tag>
-            <span>设为超级管理员</span>
+            <span>提升为超级管理员</span>
           </div>
-          <p class="step-desc">将某个账号提升为超级管理员（perm=3）。完成后此向导将关闭。</p>
 
-          <n-divider title-placement="left" style="margin: 0 0 16px">方式一：提升当前登录账号</n-divider>
+          <p class="step-desc">
+            将当前登录用户提升为超级管理员。
+          </p>
           <n-button
-            type="primary"
-            :disabled="!isLoggedIn"
-            :loading="promoting"
-            @click="handlePromote"
+              type="primary"
+              :loading="promoting"
+              :disabled="!isLoggedIn || isDone"
+              @click="handlePromoteSelf"
           >
-            {{ isLoggedIn ? '设为超级管理员' : '请先完成第 2 步登录' }}
+            将当前用户设为管理员
           </n-button>
 
-          <n-divider title-placement="left" style="margin: 20px 0 16px">方式二：直接指定账号 ID（可恢复被封禁账号）</n-divider>
-          <p class="step-desc" style="margin-bottom: 12px">
-            输入数据库中已有的用户 ID（OIDC sub），无需登录即可提升并解封。
+          <n-divider style="margin: 16px 0">或按用户 ID 提升</n-divider>
+          <p class="step-desc">
+            输入数据库中已有的用户 ID(OIDC sub),无需登录即可提升并解封。
           </p>
           <n-input-group>
             <n-input
-              v-model:value="promoteUserId"
-              placeholder="用户 ID（OIDC sub）"
-              @keyup.enter="handlePromoteById"
+                v-model:value="promoteUserId"
+                placeholder="用户 ID(OIDC sub)"
+                @keyup.enter="handlePromoteById"
             />
             <n-button type="warning" :loading="promotingById" @click="handlePromoteById">
               提升 / 解封
@@ -135,7 +155,14 @@ import {
   NCard, NButton, NSpin, NForm, NFormItem, NFormItemGi, NGrid,
   NInput, NInputGroup, NTag, NText, NSpace, NDivider, useMessage
 } from 'naive-ui'
-import { getSetupStatus, setupOidc, setupPromote, setupPromoteById, getOidcProviders } from '@/api/server'
+import {
+  getSetupStatus,
+  setupOidc,
+  setupPromote,
+  setupPromoteById,
+  getOidcProviders,
+  discoverOidc
+} from '@/api/server'
 import { useAuthStore } from '@/stores/authStore'
 
 const router = useRouter()
@@ -149,6 +176,10 @@ const promoting = ref(false)
 const promotingById = ref(false)
 const promoteUserId = ref('')
 const isDone = ref(false)
+
+// ★ 自动发现相关状态 ★
+const issuerUrl = ref('')
+const discovering = ref(false)
 
 const isLoggedIn = computed(() => authStore.isAuthenticated)
 
@@ -178,31 +209,70 @@ onMounted(async () => {
   try {
     await getSetupStatus()
   } catch {
-    // Not in setup mode → redirect home
     router.replace('/')
     return
   }
-  await Promise.all([authStore.checkAuth(), loadProviders()])
+  await loadProviders()
   checking.value = false
 })
 
+// ★ OIDC 自动发现处理函数 ★
+const handleDiscover = async () => {
+  if (!issuerUrl.value) {
+    message.warning('请先输入 Issuer URL')
+    return
+  }
+  discovering.value = true
+  try {
+    const config = await discoverOidc(issuerUrl.value)
+
+    if (config.authorization_endpoint) {
+      oidcForm.auth_url = config.authorization_endpoint
+    }
+    if (config.token_endpoint) {
+      oidcForm.apipoint = config.token_endpoint
+    }
+    if (!oidcForm.name && config.issuer) {
+      try {
+        oidcForm.name = new URL(config.issuer).hostname
+      } catch { /* ignore */ }
+    }
+
+    message.success('已自动填充授权端点和令牌端点')
+  } catch (e) {
+    message.error('自动发现失败: ' + e.message)
+  } finally {
+    discovering.value = false
+  }
+}
+
 const handleSaveOidc = () => {
-  oidcFormRef.value.validate(async (errors) => {
+  oidcFormRef.value?.validate(async (errors) => {
     if (errors) return
     oidcSaving.value = true
     try {
-      // Set frontend to /setup so user returns here after OIDC login
-      await setupOidc({ ...oidcForm, frontend: '/setup' })
+      await setupOidc({ ...oidcForm })
       message.success('OIDC 提供商已保存')
       Object.assign(oidcForm, { id: '', name: '', secret: '', auth_url: '', apipoint: '', redirect_uri: '' })
-      oidcFormRef.value.restoreValidation()
+      issuerUrl.value = ''
       await loadProviders()
     } catch (e) {
-      message.error('保存失败：' + (e.response?.data || e.message))
+      message.error('保存失败: ' + (e.response?.data || e.message))
     } finally {
       oidcSaving.value = false
     }
   })
+}
+
+const handleDeleteProvider = async (p) => {
+  try {
+    // Setup 模式下复用 setupOidc 或直接调用删除接口
+    await setupOidc({ delete: true, id: p.id })
+    message.success('已删除')
+    await loadProviders()
+  } catch (e) {
+    message.error('删除失败: ' + (e.response?.data || e.message))
+  }
 }
 
 const handleOidcLogin = (provider) => {
@@ -211,48 +281,36 @@ const handleOidcLogin = (provider) => {
     client_id: provider.id,
     redirect_uri: provider.redirect_uri,
     state: provider.id,
-    scope: 'openid'
+    scope: 'openid profile'
   })
   window.location.href = `${provider.auth_url}?${params.toString()}`
 }
 
-const handlePromote = async () => {
+const handlePromoteSelf = async () => {
   promoting.value = true
   try {
     await setupPromote()
-    await authStore.checkAuth()
-    message.success('已成为超级管理员，正在跳转…')
+    message.success('已提升为超级管理员，请刷新页面')
     isDone.value = true
-    setTimeout(() => router.push('/'), 1500)
   } catch (e) {
-    if (e.response?.status === 404) {
-      message.info('系统已完成初始化，正在跳转…')
-      router.push('/')
-    } else {
-      message.error('操作失败：' + (e.response?.data || e.message))
-    }
+    message.error('提升失败: ' + (e.response?.data || e.message))
   } finally {
     promoting.value = false
   }
 }
 
 const handlePromoteById = async () => {
-  if (!promoteUserId.value.trim()) return
+  if (!promoteUserId.value) {
+    message.warning('请输入用户 ID')
+    return
+  }
   promotingById.value = true
   try {
-    await setupPromoteById(promoteUserId.value.trim())
-    message.success('账号已提升为超级管理员，请使用该账号登录。')
+    await setupPromoteById(promoteUserId.value)
+    message.success('用户已提升为超级管理员')
     isDone.value = true
-    setTimeout(() => router.push('/'), 1500)
   } catch (e) {
-    if (e.response?.status === 404) {
-      message.error('未找到该用户 ID，请确认账号已登录过至少一次')
-    } else if (e.response?.status === 404 && e.response?.data === 'Not found') {
-      message.info('系统已完成初始化，正在跳转…')
-      router.push('/')
-    } else {
-      message.error('操作失败：' + (e.response?.data || e.message))
-    }
+    message.error('提升失败: ' + (e.response?.data || e.message))
   } finally {
     promotingById.value = false
   }
@@ -261,67 +319,49 @@ const handlePromoteById = async () => {
 
 <style scoped>
 .setup-container {
-  max-width: 720px;
+  max-width: 700px;
   margin: 0 auto;
-  padding: 40px 24px;
+  padding: 32px 16px;
 }
-
 .setup-header {
   text-align: center;
-  margin-bottom: 36px;
+  margin-bottom: 32px;
 }
-
 .setup-header h1 {
-  margin: 0 0 8px;
-  font-size: 28px;
-  font-weight: 600;
-}
-
-.setup-subtitle {
   margin: 0;
-  color: #666;
-  font-size: 14px;
+  font-size: 28px;
 }
-
+.setup-subtitle {
+  color: #666;
+  margin-top: 8px;
+}
 .steps {
   display: flex;
   flex-direction: column;
   gap: 20px;
 }
-
 .step-card {
-  transition: opacity 0.2s;
+  border-radius: 8px;
 }
-
-.step-disabled {
-  opacity: 0.5;
-  pointer-events: none;
-}
-
 .step-title {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 600;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
-
 .step-desc {
-  margin: 0 0 16px;
   color: #666;
-  font-size: 14px;
+  margin: 0 0 16px 0;
 }
-
-.step-actions {
-  margin-top: 16px;
-}
-
 .configured-providers {
-  margin-top: 4px;
+  margin-top: 8px;
 }
-
-.logged-in-info {
-  padding: 8px 0;
+.provider-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
 }
 </style>

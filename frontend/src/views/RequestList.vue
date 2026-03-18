@@ -56,7 +56,8 @@ const statusLabel = {
 }
 const reqTypeLabel = {
   create: '新建服务器',
-  edit: '编辑服务器'
+  edit: '编辑服务器',
+  delete: '移除服务器'
 }
 
 const fetchRequests = async () => {

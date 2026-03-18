@@ -90,7 +90,7 @@ const handleOidcLogin = (provider) => {
     client_id: provider.id,
     redirect_uri: provider.redirect_uri,
     state: provider.id,
-    scope: 'openid'
+    scope: 'openid profile'
   })
   window.location.href = `${provider.auth_url}?${params.toString()}`
 }

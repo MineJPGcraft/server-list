@@ -22,7 +22,7 @@
       </n-form-item>
 
       <n-form-item
-        v-if="formData.req_type === 'edit'"
+        v-if="formData.req_type === 'edit'||formData.req_type === 'delete'"
         label="目标服务器 UUID"
         path="target_uuid"
       >
@@ -36,31 +36,31 @@
         />
       </n-form-item>
 
-      <n-form-item label="名称" path="name">
+      <n-form-item label="名称" path="name" v-if="formData.req_type !== 'delete'">
         <n-input v-model:value="formData.name" placeholder="请输入服务器名称" />
       </n-form-item>
 
-      <n-form-item label="类型" path="type">
+      <n-form-item label="类型" path="type" v-if="formData.req_type !== 'delete'">
         <n-input v-model:value="formData.type" placeholder="请输入服务器类型" />
       </n-form-item>
 
-      <n-form-item label="版本" path="version">
+      <n-form-item label="版本" path="version" v-if="formData.req_type !== 'delete'">
         <n-input v-model:value="formData.version" placeholder="请输入服务器版本" />
       </n-form-item>
 
-      <n-form-item label="图标URL" path="icon">
+      <n-form-item label="图标URL" path="icon" v-if="formData.req_type !== 'delete'">
         <n-input v-model:value="formData.icon" placeholder="https://example.com/icon.png" />
       </n-form-item>
 
-      <n-form-item label="链接" path="link">
+      <n-form-item label="链接" path="link" v-if="formData.req_type !== 'delete'">
         <n-input v-model:value="formData.link" placeholder="https://example.com" />
       </n-form-item>
 
-      <n-form-item label="IP地址（可选）" path="IP">
+      <n-form-item label="IP地址（可选）" path="IP" v-if="formData.req_type !== 'delete'">
         <n-input v-model:value="formData.IP" placeholder="请输入IP地址或域名（可选）" />
       </n-form-item>
 
-      <n-form-item label="描述" path="description">
+      <n-form-item label="描述" path="description" v-if="formData.req_type !== 'delete'">
         <n-input
           v-model:value="formData.description"
           type="textarea"
@@ -110,7 +110,8 @@ const formData = reactive({
 
 const reqTypeOptions = [
   { label: '新建服务器', value: 'create' },
-  { label: '编辑现有服务器', value: 'edit' }
+  { label: '编辑现有服务器', value: 'edit'},
+  { label: '移除现有服务器', value: 'delete' }
 ]
 
 const serverOptions = computed(() =>

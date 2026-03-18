@@ -132,7 +132,8 @@ const rejectSaving = ref(false)
 
 const reqTypeLabel = {
   create: '新建服务器',
-  edit: '编辑服务器'
+  edit: '编辑服务器',
+  delete: '删除服务器'
 }
 
 const fetchRequests = async () => {
